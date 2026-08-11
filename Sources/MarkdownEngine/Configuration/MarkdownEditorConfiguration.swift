@@ -282,13 +282,17 @@ public struct BulletStyle: Sendable, Equatable {
     public var shapeLadder: [BulletShape]
     /// nil uses `theme.bodyText`.
     public var color: NSColor?
+    /// Stroke width of the `.hollowRing` shape.
+    public var ringStrokeWidth: CGFloat
 
     public init(
         shapeLadder: [BulletShape] = [.filledDot],
-        color: NSColor? = nil
+        color: NSColor? = nil,
+        ringStrokeWidth: CGFloat = 1
     ) {
         self.shapeLadder = shapeLadder
         self.color = color
+        self.ringStrokeWidth = ringStrokeWidth
     }
 
     public static let `default` = BulletStyle()
@@ -301,6 +305,15 @@ public struct BulletStyle: Sendable, Equatable {
 }
 
 public struct TaskCheckboxStyle: Sendable, Equatable {
+    /// How the box is painted. `.systemSymbol` is the historical rendering
+    /// (SF Symbols `square` / `checkmark.square.fill`) and ignores the stroke,
+    /// radius and colour fields below.
+    public enum Rendering: Sendable, Equatable {
+        case systemSymbol
+        case drawn
+    }
+
+    public var rendering: Rendering
     /// nil derives the size from the font.
     public var size: CGFloat?
     public var strokeWidth: CGFloat
@@ -316,6 +329,7 @@ public struct TaskCheckboxStyle: Sendable, Equatable {
     public var checkmarkColor: NSColor?
 
     public init(
+        rendering: Rendering = .systemSymbol,
         size: CGFloat? = nil,
         strokeWidth: CGFloat = 1,
         cornerRadius: CGFloat = 3,
@@ -324,6 +338,7 @@ public struct TaskCheckboxStyle: Sendable, Equatable {
         checkedFillColor: NSColor? = nil,
         checkmarkColor: NSColor? = nil
     ) {
+        self.rendering = rendering
         self.size = size
         self.strokeWidth = strokeWidth
         self.cornerRadius = cornerRadius
@@ -334,13 +349,10 @@ public struct TaskCheckboxStyle: Sendable, Equatable {
     }
 
     public static let `default` = TaskCheckboxStyle()
-
-    /// True when nothing is customised, so the renderer keeps the SF Symbol path.
-    public var usesSystemSymbol: Bool { self == .default }
 }
 
 /// Behavior toggles and metrics for ordered / unordered list editing.
-public struct ListStyle: Sendable {
+public struct ListStyle: Sendable, Equatable {
     /// Master switch for list-related editing helpers (auto-continue,
     /// auto-indent, marker conversion). When `false`, lists are still
     /// rendered, but typing-time conveniences are skipped.

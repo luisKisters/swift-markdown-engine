@@ -24,6 +24,8 @@ extension NSAttributedString.Key {
     /// Marks a bullet-list marker char (`-`/`*`/`+`) whose glyph is hidden so
     /// the fragment can paint a `•` in its place. Set to `true`.
     static let bulletMarker = NSAttributedString.Key("BulletListMarker")
+    /// Int nesting level (1-based) of a bullet-list marker; selects the shape
+    /// from `BulletStyle.shapeLadder`. Absent means depth 1.
     static let bulletListLevel = NSAttributedString.Key("BulletListLevel")
     /// CGFloat — natural image width; presence flags block as overlay-rendered.
     static let scrollableBlockNaturalWidth = NSAttributedString.Key("ScrollableBlockNaturalWidth")
@@ -564,10 +566,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             color.set()
             switch shape {
             case .filledDot:
-                break
+                break // Unreachable: the glyph path above already returned.
             case .hollowRing:
                 let path = NSBezierPath(ovalIn: rect)
-                path.lineWidth = 1
+                path.lineWidth = style.ringStrokeWidth
                 path.stroke()
             case .smallSquare:
                 NSBezierPath(rect: rect).fill()
@@ -626,7 +628,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let boxRect = CGRect(x: alignToPixel(boxX), y: alignToPixel(boxY), width: size, height: size)
             guard !boxRect.isEmpty, !boxRect.isNull else { return }
 
-            if style.usesSystemSymbol {
+            if style.rendering == .systemSymbol {
                 let iconInset = max(0.0, size * 0.01)
                 let iconRect = boxRect.insetBy(dx: iconInset, dy: iconInset)
                 let symbolName = isChecked ? "checkmark.square.fill" : "square"

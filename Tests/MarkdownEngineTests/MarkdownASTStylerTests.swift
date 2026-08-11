@@ -297,7 +297,7 @@ struct ListMarkerStyleTests {
     @Test("default styles preserve existing rendering")
     func defaultStyles() {
         #expect(BulletStyle.default.shape(forDepth: 1) == .filledDot)
-        #expect(TaskCheckboxStyle.default.usesSystemSymbol)
+        #expect(TaskCheckboxStyle.default.rendering == .systemSymbol)
     }
 
     @Test("bullet shapes clamp at the last ladder entry")
@@ -308,11 +308,35 @@ struct ListMarkerStyleTests {
         #expect(BulletStyle(shapeLadder: []).shape(forDepth: 1) == .filledDot)
     }
 
-    @Test("styler records the top-level bullet depth")
-    func topLevelBulletDepth() {
+    /// `indentLevel(from:)` is 0-based and the ladder is 1-based. Drive a real
+    /// nested list so that conversion cannot silently go off by one.
+    @Test("styler records bullet depth 1-based, per nesting level")
+    func bulletDepthPerLevel() {
         let fontName = NSFont.systemFont(ofSize: 14).fontName
-        let attrs = MarkdownASTStyler.styleAttributes(text: "- a", fontName: fontName, fontSize: 14)
-        let marker = attrs.first { ($0.attributes[.bulletMarker] as? Bool) == true }
-        #expect(marker?.attributes[.bulletListLevel] as? Int == 1)
+        let attrs = MarkdownASTStyler.styleAttributes(
+            text: "- a\n\t- b\n\t\t- c",
+            fontName: fontName,
+            fontSize: 14
+        )
+        let levels = attrs
+            .filter { ($0.attributes[.bulletMarker] as? Bool) == true }
+            .compactMap { $0.attributes[.bulletListLevel] as? Int }
+        #expect(levels == [1, 2, 3])
+    }
+
+    @Test("checkbox size follows the style, else the font")
+    func checkboxSize() {
+        let font = NSFont.systemFont(ofSize: 14)
+        #expect(
+            TaskCheckboxGeometry.size(for: font, style: .default)
+                == TaskCheckboxGeometry.size(for: font)
+        )
+        #expect(TaskCheckboxGeometry.size(for: font, style: TaskCheckboxStyle(size: 20)) == 20)
+    }
+
+    @Test("checkbox gap comes from the style")
+    func checkboxGap() {
+        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 15, gap: 6) == 79)
+        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 15) == 83)
     }
 }
