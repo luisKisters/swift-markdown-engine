@@ -540,48 +540,44 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                 ?? (self.textLayoutManager?.textContainer?.textView?.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
             let markerWidth = storageString.substring(with: attrRange).size(withAttributes: [.font: font]).width
             let level = ts.attribute(.bulletListLevel, at: attrRange.location, effectiveRange: nil) as? Int ?? 1
+            let color = style.color ?? theme.bodyText
             let shape = style.shape(forDepth: level)
-            switch shape {
-            case .filledDot, .glyph:
-                let bulletAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: style.color ?? theme.bodyText]
-                let bullet: NSString
-                if case let .glyph(glyph) = shape {
-                    bullet = glyph as NSString
-                } else {
-                    bullet = "•" as NSString
-                }
+            if shape == .filledDot {
+                let bulletAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+                let bullet = "•" as NSString
                 let bulletWidth = bullet.size(withAttributes: bulletAttrs).width
                 let xOffset = max(0, (markerWidth - bulletWidth) / 2)
                 // Flipped context: text origin is its top edge, baseline sits one
                 // ascent below — so top = baseline − ascent aligns the glyph.
                 let topY = pos.baselineY - font.ascender
                 bullet.draw(at: CGPoint(x: pos.x + xOffset, y: topY), withAttributes: bulletAttrs)
-            case .hollowRing, .smallSquare, .triangle:
-                let diameter = round(font.pointSize * 0.32 * style.sizeScale)
-                let center = CGPoint(
-                    x: pos.x + markerWidth / 2,
-                    y: pos.baselineY + (max(0, -font.descender) - max(0, font.ascender)) / 2
-                )
-                let rect = CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
-                                  width: diameter, height: diameter)
-                (style.color ?? theme.bodyText).set()
-                switch shape {
-                case .hollowRing:
-                    let path = NSBezierPath(ovalIn: rect)
-                    path.lineWidth = 1
-                    path.stroke()
-                case .smallSquare:
-                    NSBezierPath(rect: rect).fill()
-                case .triangle:
-                    let path = NSBezierPath()
-                    path.move(to: CGPoint(x: center.x, y: rect.minY))
-                    path.line(to: CGPoint(x: rect.maxX, y: rect.maxY))
-                    path.line(to: CGPoint(x: rect.minX, y: rect.maxY))
-                    path.close()
-                    path.fill()
-                default:
-                    break
-                }
+                return
+            }
+
+            let diameter = round(font.pointSize * 0.32)
+            let center = CGPoint(
+                x: pos.x + markerWidth / 2,
+                y: pos.baselineY + (max(0, -font.descender) - max(0, font.ascender)) / 2
+            )
+            let rect = CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
+                              width: diameter, height: diameter)
+            color.set()
+            switch shape {
+            case .filledDot:
+                break
+            case .hollowRing:
+                let path = NSBezierPath(ovalIn: rect)
+                path.lineWidth = 1
+                path.stroke()
+            case .smallSquare:
+                NSBezierPath(rect: rect).fill()
+            case .triangle:
+                let path = NSBezierPath()
+                path.move(to: CGPoint(x: center.x, y: rect.minY))
+                path.line(to: CGPoint(x: rect.maxX, y: rect.maxY))
+                path.line(to: CGPoint(x: rect.minX, y: rect.maxY))
+                path.close()
+                path.fill()
             }
         }
     }

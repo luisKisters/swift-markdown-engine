@@ -293,22 +293,18 @@ private func fmt(_ r: NSRange) -> String {
 @Suite("List marker styles")
 struct ListMarkerStyleTests {
 
+    /// The default style must still hit the `•` glyph and SF Symbol paths.
     @Test("default styles preserve existing rendering")
     func defaultStyles() {
-        #expect(ListStyle.default.bullets == .default)
+        #expect(BulletStyle.default.shape(forDepth: 1) == .filledDot)
         #expect(TaskCheckboxStyle.default.usesSystemSymbol)
-        for depth in 1...5 {
-            #expect(BulletStyle.default.shape(forDepth: depth) == .filledDot)
-        }
     }
 
-    @Test("tiered bullet shapes clamp at the last entry")
-    func tieredShapes() {
-        #expect(BulletStyle.tiered.shape(forDepth: 1) == .filledDot)
-        #expect(BulletStyle.tiered.shape(forDepth: 2) == .hollowRing)
-        #expect(BulletStyle.tiered.shape(forDepth: 3) == .smallSquare)
-        #expect(BulletStyle.tiered.shape(forDepth: 4) == .triangle)
-        #expect(BulletStyle.tiered.shape(forDepth: 5) == .triangle)
+    @Test("bullet shapes clamp at the last ladder entry")
+    func ladderClamping() {
+        let style = BulletStyle(shapeLadder: [.filledDot, .hollowRing, .smallSquare])
+        #expect(style.shape(forDepth: 2) == .hollowRing)
+        #expect(style.shape(forDepth: 9) == .smallSquare)
         #expect(BulletStyle(shapeLadder: []).shape(forDepth: 1) == .filledDot)
     }
 

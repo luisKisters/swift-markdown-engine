@@ -275,7 +275,6 @@ public enum BulletShape: Sendable, Equatable {
     case hollowRing
     case smallSquare
     case triangle
-    case glyph(String)
 }
 
 public struct BulletStyle: Sendable, Equatable {
@@ -283,21 +282,16 @@ public struct BulletStyle: Sendable, Equatable {
     public var shapeLadder: [BulletShape]
     /// nil uses `theme.bodyText`.
     public var color: NSColor?
-    /// Multiplier on the drawn shape's diameter.
-    public var sizeScale: CGFloat
 
     public init(
         shapeLadder: [BulletShape] = [.filledDot],
-        color: NSColor? = nil,
-        sizeScale: CGFloat = 1
+        color: NSColor? = nil
     ) {
         self.shapeLadder = shapeLadder
         self.color = color
-        self.sizeScale = sizeScale
     }
 
     public static let `default` = BulletStyle()
-    public static let tiered = BulletStyle(shapeLadder: [.filledDot, .hollowRing, .smallSquare, .triangle])
 
     /// 1-based depth -> shape, clamped; empty ladder -> `.filledDot`.
     public func shape(forDepth depth: Int) -> BulletShape {
