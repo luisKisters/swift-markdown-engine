@@ -33,7 +33,7 @@ enum TaskCheckboxGeometry {
     }
 
     /// Left edge of the square: right-aligned to the content start x with `gap`.
-    static func boxX(contentX: CGFloat, size: CGFloat) -> CGFloat {
+    static func boxX(contentX: CGFloat, size: CGFloat, gap: CGFloat = gap) -> CGFloat {
         contentX - size - gap
     }
 }

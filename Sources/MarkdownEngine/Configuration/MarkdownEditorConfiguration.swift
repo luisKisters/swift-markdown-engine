@@ -305,6 +305,9 @@ public struct TaskCheckboxStyle: Sendable, Equatable {
     public var size: CGFloat?
     public var strokeWidth: CGFloat
     public var cornerRadius: CGFloat
+    /// Gap between the box's right edge and the task content's left edge. A
+    /// larger box needs a larger gap or the label reads as touching it.
+    public var gap: CGFloat
     /// nil uses `theme.mutedText`.
     public var uncheckedColor: NSColor?
     /// nil uses `theme.bodyText`.
@@ -316,6 +319,7 @@ public struct TaskCheckboxStyle: Sendable, Equatable {
         size: CGFloat? = nil,
         strokeWidth: CGFloat = 1,
         cornerRadius: CGFloat = 3,
+        gap: CGFloat = 2,
         uncheckedColor: NSColor? = nil,
         checkedFillColor: NSColor? = nil,
         checkmarkColor: NSColor? = nil
@@ -323,6 +327,7 @@ public struct TaskCheckboxStyle: Sendable, Equatable {
         self.size = size
         self.strokeWidth = strokeWidth
         self.cornerRadius = cornerRadius
+        self.gap = gap
         self.uncheckedColor = uncheckedColor
         self.checkedFillColor = checkedFillColor
         self.checkmarkColor = checkmarkColor

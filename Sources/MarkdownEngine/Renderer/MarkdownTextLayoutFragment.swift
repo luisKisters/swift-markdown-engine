@@ -614,7 +614,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let ascent = max(0, font.ascender)
             let descent = max(0, -font.descender)
             let size = TaskCheckboxGeometry.size(for: font, style: style)
-            let boxX = TaskCheckboxGeometry.boxX(contentX: pos.x, size: size)
+            let boxX = TaskCheckboxGeometry.boxX(contentX: pos.x, size: size, gap: style.gap)
             let centerY = pos.baselineY + (descent - ascent) / 2
             let boxY = centerY - size / 2
 
