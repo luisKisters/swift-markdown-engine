@@ -469,7 +469,12 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         // makeNSView used to write it — an embedder settings change was inert
         // until the editor was rebuilt. Plain assignment: a tiny value struct,
         // and no rebuild is needed for it to take effect.
+        let oldBulletStyle = textView.configuration.lists.bullets
+        let oldTaskCheckboxStyle = textView.configuration.lists.taskCheckbox
         textView.configuration.lists = configuration.lists
+        if oldBulletStyle != configuration.lists.bullets || oldTaskCheckboxStyle != configuration.lists.taskCheckbox {
+            textView.setNeedsDisplay(textView.visibleRect)
+        }
         context.coordinator.configuration.lists = configuration.lists
         // Sync registered extensions (inline spans + fenced blocks). A change alters the GRAMMAR
         // (tokens differ under the new registry), so the coordinator's parsed

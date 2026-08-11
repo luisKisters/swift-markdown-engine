@@ -24,7 +24,7 @@ extension NativeTextView {
         guard let textContainer = textContainer,
               let bridge = layoutBridge,
               let storage = textStorage, storage.length > 0 else { return nil }
-        let boxSize = TaskCheckboxGeometry.size(for: baseFont)
+        let boxSize = TaskCheckboxGeometry.size(for: baseFont, style: configuration.lists.taskCheckbox)
         let scan = searchRange ?? NSRange(location: 0, length: storage.length)
         var hit: (range: NSRange, isChecked: Bool)?
         storage.enumerateAttribute(.taskCheckbox, in: scan, options: []) { value, attrRange, stop in

@@ -28,6 +28,10 @@ enum TaskCheckboxGeometry {
         return max(1.0, min(floor(fontHeight * 1.2), floor(markerWidth * 1.2)))
     }
 
+    static func size(for font: NSFont, style: TaskCheckboxStyle) -> CGFloat {
+        style.size ?? size(for: font)
+    }
+
     /// Left edge of the square: right-aligned to the content start x with `gap`.
     static func boxX(contentX: CGFloat, size: CGFloat) -> CGFloat {
         contentX - size - gap

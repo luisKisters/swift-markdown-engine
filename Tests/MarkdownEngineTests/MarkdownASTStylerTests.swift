@@ -289,3 +289,34 @@ private func styleKeySnapshot(_ ranges: [StyledRange]) -> String {
 private func fmt(_ r: NSRange) -> String {
     r.location == NSNotFound ? "∅" : "\(r.location)+\(r.length)"
 }
+
+@Suite("List marker styles")
+struct ListMarkerStyleTests {
+
+    @Test("default styles preserve existing rendering")
+    func defaultStyles() {
+        #expect(ListStyle.default.bullets == .default)
+        #expect(TaskCheckboxStyle.default.usesSystemSymbol)
+        for depth in 1...5 {
+            #expect(BulletStyle.default.shape(forDepth: depth) == .filledDot)
+        }
+    }
+
+    @Test("tiered bullet shapes clamp at the last entry")
+    func tieredShapes() {
+        #expect(BulletStyle.tiered.shape(forDepth: 1) == .filledDot)
+        #expect(BulletStyle.tiered.shape(forDepth: 2) == .hollowRing)
+        #expect(BulletStyle.tiered.shape(forDepth: 3) == .smallSquare)
+        #expect(BulletStyle.tiered.shape(forDepth: 4) == .triangle)
+        #expect(BulletStyle.tiered.shape(forDepth: 5) == .triangle)
+        #expect(BulletStyle(shapeLadder: []).shape(forDepth: 1) == .filledDot)
+    }
+
+    @Test("styler records the top-level bullet depth")
+    func topLevelBulletDepth() {
+        let fontName = NSFont.systemFont(ofSize: 14).fontName
+        let attrs = MarkdownASTStyler.styleAttributes(text: "- a", fontName: fontName, fontSize: 14)
+        let marker = attrs.first { ($0.attributes[.bulletMarker] as? Bool) == true }
+        #expect(marker?.attributes[.bulletListLevel] as? Int == 1)
+    }
+}

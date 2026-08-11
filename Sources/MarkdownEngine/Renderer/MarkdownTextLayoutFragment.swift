@@ -24,6 +24,7 @@ extension NSAttributedString.Key {
     /// Marks a bullet-list marker char (`-`/`*`/`+`) whose glyph is hidden so
     /// the fragment can paint a `•` in its place. Set to `true`.
     static let bulletMarker = NSAttributedString.Key("BulletListMarker")
+    static let bulletListLevel = NSAttributedString.Key("BulletListLevel")
     /// CGFloat — natural image width; presence flags block as overlay-rendered.
     static let scrollableBlockNaturalWidth = NSAttributedString.Key("ScrollableBlockNaturalWidth")
     /// Int — hash of source text; key for overlay reconcile + offset persistence.
@@ -524,8 +525,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = nsContext
 
-        let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?
-            .configuration.theme ?? .default
+        let configuration = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration
+        let theme = configuration?.theme ?? .default
+        let style = configuration?.lists.bullets ?? .default
         let storageString = ts.string as NSString
 
         ts.enumerateAttribute(.bulletMarker, in: range, options: []) { [weak self] value, attrRange, _ in
@@ -536,16 +538,51 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
             let font = (ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont)
                 ?? (self.textLayoutManager?.textContainer?.textView?.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
-            let bulletAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: theme.bodyText]
-            let bullet = "•" as NSString
-
             let markerWidth = storageString.substring(with: attrRange).size(withAttributes: [.font: font]).width
-            let bulletWidth = bullet.size(withAttributes: bulletAttrs).width
-            let xOffset = max(0, (markerWidth - bulletWidth) / 2)
-            // Flipped context: text origin is its top edge, baseline sits one
-            // ascent below — so top = baseline − ascent aligns the glyph.
-            let topY = pos.baselineY - font.ascender
-            bullet.draw(at: CGPoint(x: pos.x + xOffset, y: topY), withAttributes: bulletAttrs)
+            let level = ts.attribute(.bulletListLevel, at: attrRange.location, effectiveRange: nil) as? Int ?? 1
+            let shape = style.shape(forDepth: level)
+            switch shape {
+            case .filledDot, .glyph:
+                let bulletAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: style.color ?? theme.bodyText]
+                let bullet: NSString
+                if case let .glyph(glyph) = shape {
+                    bullet = glyph as NSString
+                } else {
+                    bullet = "•" as NSString
+                }
+                let bulletWidth = bullet.size(withAttributes: bulletAttrs).width
+                let xOffset = max(0, (markerWidth - bulletWidth) / 2)
+                // Flipped context: text origin is its top edge, baseline sits one
+                // ascent below — so top = baseline − ascent aligns the glyph.
+                let topY = pos.baselineY - font.ascender
+                bullet.draw(at: CGPoint(x: pos.x + xOffset, y: topY), withAttributes: bulletAttrs)
+            case .hollowRing, .smallSquare, .triangle:
+                let diameter = round(font.pointSize * 0.32 * style.sizeScale)
+                let center = CGPoint(
+                    x: pos.x + markerWidth / 2,
+                    y: pos.baselineY + (max(0, -font.descender) - max(0, font.ascender)) / 2
+                )
+                let rect = CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
+                                  width: diameter, height: diameter)
+                (style.color ?? theme.bodyText).set()
+                switch shape {
+                case .hollowRing:
+                    let path = NSBezierPath(ovalIn: rect)
+                    path.lineWidth = 1
+                    path.stroke()
+                case .smallSquare:
+                    NSBezierPath(rect: rect).fill()
+                case .triangle:
+                    let path = NSBezierPath()
+                    path.move(to: CGPoint(x: center.x, y: rect.minY))
+                    path.line(to: CGPoint(x: rect.maxX, y: rect.maxY))
+                    path.line(to: CGPoint(x: rect.minX, y: rect.maxY))
+                    path.close()
+                    path.fill()
+                default:
+                    break
+                }
+            }
         }
     }
 
@@ -562,6 +599,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         defer { NSGraphicsContext.restoreGraphicsState() }
         let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = nsContext
+        let textView = textLayoutManager?.textContainer?.textView as? NativeTextView
+        let style = textView?.configuration.lists.taskCheckbox ?? .default
 
         ts.enumerateAttribute(.taskCheckbox, in: range, options: []) { [weak self] value, attrRange, _ in
             guard let self, value != nil else { return }
@@ -578,7 +617,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                 ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
             let ascent = max(0, font.ascender)
             let descent = max(0, -font.descender)
-            let size = TaskCheckboxGeometry.size(for: font)
+            let size = TaskCheckboxGeometry.size(for: font, style: style)
             let boxX = TaskCheckboxGeometry.boxX(contentX: pos.x, size: size)
             let centerY = pos.baselineY + (descent - ascent) / 2
             let boxY = centerY - size / 2
@@ -591,17 +630,40 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let boxRect = CGRect(x: alignToPixel(boxX), y: alignToPixel(boxY), width: size, height: size)
             guard !boxRect.isEmpty, !boxRect.isNull else { return }
 
-            let iconInset = max(0.0, size * 0.01)
-            let iconRect = boxRect.insetBy(dx: iconInset, dy: iconInset)
-            let symbolName = isChecked ? "checkmark.square.fill" : "square"
-            if let baseSymbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-                let sizeConfig = NSImage.SymbolConfiguration(pointSize: iconRect.height, weight: .regular)
-                let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration.theme ?? .default
-                let tint = isChecked ? theme.bodyText : theme.mutedText
-                let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: tint)
-                let symbolConfig = sizeConfig.applying(colorConfig)
-                let symbol = baseSymbol.withSymbolConfiguration(symbolConfig) ?? baseSymbol
-                symbol.draw(in: iconRect)
+            if style.usesSystemSymbol {
+                let iconInset = max(0.0, size * 0.01)
+                let iconRect = boxRect.insetBy(dx: iconInset, dy: iconInset)
+                let symbolName = isChecked ? "checkmark.square.fill" : "square"
+                if let baseSymbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+                    let sizeConfig = NSImage.SymbolConfiguration(pointSize: iconRect.height, weight: .regular)
+                    let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration.theme ?? .default
+                    let tint = isChecked ? theme.bodyText : theme.mutedText
+                    let colorConfig = NSImage.SymbolConfiguration(hierarchicalColor: tint)
+                    let symbolConfig = sizeConfig.applying(colorConfig)
+                    let symbol = baseSymbol.withSymbolConfiguration(symbolConfig) ?? baseSymbol
+                    symbol.draw(in: iconRect)
+                }
+            } else {
+                let theme = textView?.configuration.theme ?? .default
+                let box = NSBezierPath(roundedRect: boxRect, xRadius: style.cornerRadius,
+                                       yRadius: style.cornerRadius)
+                if isChecked {
+                    (style.checkedFillColor ?? theme.bodyText).setFill()
+                    box.fill()
+                    let check = NSBezierPath()
+                    check.lineWidth = style.strokeWidth
+                    check.lineCapStyle = .round
+                    check.lineJoinStyle = .round
+                    check.move(to: CGPoint(x: boxRect.minX + size * 0.23, y: boxRect.minY + size * 0.52))
+                    check.line(to: CGPoint(x: boxRect.minX + size * 0.43, y: boxRect.minY + size * 0.72))
+                    check.line(to: CGPoint(x: boxRect.minX + size * 0.78, y: boxRect.minY + size * 0.30))
+                    (style.checkmarkColor ?? NSColor.white).setStroke()
+                    check.stroke()
+                } else {
+                    box.lineWidth = style.strokeWidth
+                    (style.uncheckedColor ?? theme.mutedText).setStroke()
+                    box.stroke()
+                }
             }
         }
     }

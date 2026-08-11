@@ -270,6 +270,76 @@ public struct InlineCodeStyle: Sendable {
 
 // MARK: - Lists
 
+public enum BulletShape: Sendable, Equatable {
+    case filledDot
+    case hollowRing
+    case smallSquare
+    case triangle
+    case glyph(String)
+}
+
+public struct BulletStyle: Sendable, Equatable {
+    /// Index 0 is depth 1; the last entry repeats for deeper levels.
+    public var shapeLadder: [BulletShape]
+    /// nil uses `theme.bodyText`.
+    public var color: NSColor?
+    /// Multiplier on the drawn shape's diameter.
+    public var sizeScale: CGFloat
+
+    public init(
+        shapeLadder: [BulletShape] = [.filledDot],
+        color: NSColor? = nil,
+        sizeScale: CGFloat = 1
+    ) {
+        self.shapeLadder = shapeLadder
+        self.color = color
+        self.sizeScale = sizeScale
+    }
+
+    public static let `default` = BulletStyle()
+    public static let tiered = BulletStyle(shapeLadder: [.filledDot, .hollowRing, .smallSquare, .triangle])
+
+    /// 1-based depth -> shape, clamped; empty ladder -> `.filledDot`.
+    public func shape(forDepth depth: Int) -> BulletShape {
+        guard !shapeLadder.isEmpty else { return .filledDot }
+        return shapeLadder[min(max(depth, 1), shapeLadder.count) - 1]
+    }
+}
+
+public struct TaskCheckboxStyle: Sendable, Equatable {
+    /// nil derives the size from the font.
+    public var size: CGFloat?
+    public var strokeWidth: CGFloat
+    public var cornerRadius: CGFloat
+    /// nil uses `theme.mutedText`.
+    public var uncheckedColor: NSColor?
+    /// nil uses `theme.bodyText`.
+    public var checkedFillColor: NSColor?
+    /// nil uses `NSColor.white`; the theme has no background color.
+    public var checkmarkColor: NSColor?
+
+    public init(
+        size: CGFloat? = nil,
+        strokeWidth: CGFloat = 1,
+        cornerRadius: CGFloat = 3,
+        uncheckedColor: NSColor? = nil,
+        checkedFillColor: NSColor? = nil,
+        checkmarkColor: NSColor? = nil
+    ) {
+        self.size = size
+        self.strokeWidth = strokeWidth
+        self.cornerRadius = cornerRadius
+        self.uncheckedColor = uncheckedColor
+        self.checkedFillColor = checkedFillColor
+        self.checkmarkColor = checkmarkColor
+    }
+
+    public static let `default` = TaskCheckboxStyle()
+
+    /// True when nothing is customised, so the renderer keeps the SF Symbol path.
+    public var usesSystemSymbol: Bool { self == .default }
+}
+
 /// Behavior toggles and metrics for ordered / unordered list editing.
 public struct ListStyle: Sendable {
     /// Master switch for list-related editing helpers (auto-continue,
@@ -284,19 +354,25 @@ public struct ListStyle: Sendable {
     public var maximumNestingLevel: Int
     /// Extra line height added on top of the default to give list items room.
     public var extraLineHeight: CGFloat
+    public var bullets: BulletStyle
+    public var taskCheckbox: TaskCheckboxStyle
 
     public init(
         helpersEnabled: Bool = true,
         autoClosePairsEnabled: Bool = true,
         indentPerLevel: CGFloat = 27.5,
         maximumNestingLevel: Int = 3,
-        extraLineHeight: CGFloat = 2
+        extraLineHeight: CGFloat = 2,
+        bullets: BulletStyle = .default,
+        taskCheckbox: TaskCheckboxStyle = .default
     ) {
         self.helpersEnabled = helpersEnabled
         self.autoClosePairsEnabled = autoClosePairsEnabled
         self.indentPerLevel = indentPerLevel
         self.maximumNestingLevel = maximumNestingLevel
         self.extraLineHeight = extraLineHeight
+        self.bullets = bullets
+        self.taskCheckbox = taskCheckbox
     }
 
     public static let `default` = ListStyle()
