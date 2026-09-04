@@ -511,10 +511,12 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     // MARK: - Bullet Markers
 
-    /// Paint a `•` over every hidden bullet marker (`.bulletMarker`). The
-    /// glyph is drawn in the same font as the source so its baseline matches
-    /// the surrounding text, and centered within the original marker char's
-    /// advance so a `•` of a different width still sits where `-`/`*`/`+` was.
+    /// Paint a vector shape over every hidden bullet marker (`.bulletMarker`).
+    /// Every depth uses the same drawn shape, so one diameter
+    /// (`BulletStyle.diameter`, else `round(pointSize * 0.32)`) governs all of
+    /// them. The centre sits on the x-height midline, and at
+    /// `ListStyle.markerCenterOffset` from the marker column start when the
+    /// embedder pins the column; otherwise in the middle of the marker advance.
     private func drawBulletMarkers(at point: CGPoint, in context: CGContext) {
         guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
         let selectionRanges: [NSRange] = {
@@ -529,7 +531,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
         let configuration = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.configuration
         let theme = configuration?.theme ?? .default
-        let style = configuration?.lists.bullets ?? .default
+        let lists = configuration?.lists ?? .default
+        let style = lists.bullets
         let storageString = ts.string as NSString
 
         ts.enumerateAttribute(.bulletMarker, in: range, options: []) { [weak self] value, attrRange, _ in
@@ -544,29 +547,19 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let level = ts.attribute(.bulletListLevel, at: attrRange.location, effectiveRange: nil) as? Int ?? 1
             let color = style.color ?? theme.bodyText
             let shape = style.shape(forDepth: level)
-            if shape == .filledDot {
-                let bulletAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-                let bullet = "•" as NSString
-                let bulletWidth = bullet.size(withAttributes: bulletAttrs).width
-                let xOffset = max(0, (markerWidth - bulletWidth) / 2)
-                // Flipped context: text origin is its top edge, baseline sits one
-                // ascent below — so top = baseline − ascent aligns the glyph.
-                let topY = pos.baselineY - font.ascender
-                bullet.draw(at: CGPoint(x: pos.x + xOffset, y: topY), withAttributes: bulletAttrs)
-                return
-            }
-
-            let diameter = round(font.pointSize * 0.32)
+            let diameter = style.diameter ?? round(font.pointSize * 0.32)
+            // Flipped context: y grows downwards, so the x-height midline sits
+            // half an x-height above the baseline.
             let center = CGPoint(
-                x: pos.x + markerWidth / 2,
-                y: pos.baselineY + (max(0, -font.descender) - max(0, font.ascender)) / 2
+                x: pos.x + (lists.markerCenterOffset ?? markerWidth / 2),
+                y: pos.baselineY - font.xHeight / 2
             )
             let rect = CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
                               width: diameter, height: diameter)
             color.set()
             switch shape {
             case .filledDot:
-                break // Unreachable: the glyph path above already returned.
+                NSBezierPath(ovalIn: rect).fill()
             case .hollowRing:
                 let path = NSBezierPath(ovalIn: rect)
                 path.lineWidth = style.ringStrokeWidth
@@ -608,7 +601,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
 
             // Box collapsed to 0.1pt, so pos.x sits at the content edge; the
-            // square is right-aligned to it (shared with the click hit-test).
+            // square is placed from it by the shared geometry — centred on the
+            // marker column when the embedder pins one, else right-aligned
+            // (shared with the click hit-test).
             // Use baseFont, NOT NSTextView.font — its getter returns the first
             // char's font (0.1pt in a heading-first doc → 1px boxes).
             let font = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
@@ -616,8 +611,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let ascent = max(0, font.ascender)
             let descent = max(0, -font.descender)
             let size = TaskCheckboxGeometry.size(for: font, style: style)
-            let boxX = TaskCheckboxGeometry.boxX(contentX: pos.x, size: size, gap: style.gap)
-            let centerY = pos.baselineY + (descent - ascent) / 2
+            let lists = textView?.configuration.lists ?? .default
+            let boxX = TaskCheckboxGeometry.boxX(contentX: pos.x, size: size, lists: lists)
+            // Centred on the cap-height midline, which is where the eye reads
+            // the box as level with the text (flipped context).
+            let centerY = pos.baselineY - font.capHeight / 2
             let boxY = centerY - size / 2
 
             let scale = textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor

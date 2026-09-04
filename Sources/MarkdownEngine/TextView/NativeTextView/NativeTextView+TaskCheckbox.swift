@@ -17,7 +17,8 @@ extension NativeTextView {
     ///
     /// The `[ ]` chars are collapsed to ~zero width, so their bounding rect sits
     /// at the content edge; reconstruct the DRAWN square from the shared
-    /// `TaskCheckboxGeometry` (right-aligned to it). `baseFont`, not
+    /// `TaskCheckboxGeometry` (centred on the marker column, or right-aligned
+    /// to the content edge when no column is pinned). `baseFont`, not
     /// NSTextView.font (see the draw site). `searchRange` bounds the scan —
     /// the hovered line for cursor checks, nil (whole doc) for clicks.
     func taskCheckboxHit(at containerPoint: CGPoint, in searchRange: NSRange? = nil) -> (range: NSRange, isChecked: Bool)? {
@@ -32,7 +33,7 @@ extension NativeTextView {
             guard let isChecked = value as? Bool else { return }
             let anchor = bridge.boundingRect(forCharacterRange: attrRange, in: textContainer)
             let rect = CGRect(
-                x: TaskCheckboxGeometry.boxX(contentX: anchor.minX, size: boxSize, gap: checkboxStyle.gap),
+                x: TaskCheckboxGeometry.boxX(contentX: anchor.minX, size: boxSize, lists: configuration.lists),
                 y: anchor.minY,
                 width: boxSize,
                 height: max(anchor.height, boxSize)

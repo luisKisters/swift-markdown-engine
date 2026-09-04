@@ -195,7 +195,7 @@ struct TaskCheckboxGeometryStylerTests {
     private var fontName: String { NSFont.systemFont(ofSize: 14).fontName }
     private var baseFont: NSFont { NSFont(name: fontName, size: base) ?? .systemFont(ofSize: base) }
     private var hiddenSize: CGFloat { MarkdownEditorConfiguration.default.markers.hiddenMarkerFontSize }
-    private var indentPerLevel: CGFloat { MarkdownEditorConfiguration.default.lists.indentPerLevel }
+    private var leadingIndent: CGFloat { MarkdownEditorConfiguration.default.lists.leadingIndent }
 
     /// Same measurement call the styler uses for the hanging indent.
     private func width(_ s: String) -> CGFloat {
@@ -241,7 +241,7 @@ struct TaskCheckboxGeometryStylerTests {
 
         // Hanging indent measures only "- " — identical to a bullet item.
         let taskIndent = headIndent(in: attrs, at: 0)
-        let expected = indentPerLevel + width("- ")
+        let expected = leadingIndent + width("- ")
         #expect(taskIndent != nil)
         #expect(abs((taskIndent ?? -1) - expected) < 0.01)
 
@@ -262,7 +262,7 @@ struct TaskCheckboxGeometryStylerTests {
             #expect(f == nil || f!.pointSize != hiddenSize, "box char at \(pos) must not collapse while revealed")
         }
         // Wrapped lines align with the visible "- [ ] ".
-        let expected = indentPerLevel + width("- [ ] ")
+        let expected = leadingIndent + width("- [ ] ")
         let revealedIndent = headIndent(in: attrs, at: 0)
         #expect(revealedIndent != nil)
         #expect(abs((revealedIndent ?? -1) - expected) < 0.01)
@@ -293,7 +293,7 @@ private func fmt(_ r: NSRange) -> String {
 @Suite("List marker styles")
 struct ListMarkerStyleTests {
 
-    /// The default style must still hit the `•` glyph and SF Symbol paths.
+    /// The default style must still hit the filled-dot and SF Symbol paths.
     @Test("default styles preserve existing rendering")
     func defaultStyles() {
         #expect(BulletStyle.default.shape(forDepth: 1) == .filledDot)
@@ -334,9 +334,64 @@ struct ListMarkerStyleTests {
         #expect(TaskCheckboxGeometry.size(for: font, style: TaskCheckboxStyle(size: 20)) == 20)
     }
 
-    @Test("checkbox gap comes from the style")
+    @Test("checkbox gap comes from the style when no marker column is pinned")
     func checkboxGap() {
-        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 15, gap: 6) == 79)
-        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 15) == 83)
+        let widerGap = ListStyle(taskCheckbox: TaskCheckboxStyle(gap: 6))
+        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 15, lists: widerGap) == 79)
+        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 15, lists: .default) == 83)
+    }
+
+    private static func styled(_ text: String, lists: ListStyle) -> [StyledRange] {
+        var configuration = MarkdownEditorConfiguration.default
+        configuration.lists = lists
+        return MarkdownASTStyler.styleAttributes(
+            text: text,
+            fontName: NSFont.systemFont(ofSize: 14).fontName,
+            fontSize: 14,
+            configuration: configuration
+        )
+    }
+
+    private static func width(_ s: String) -> CGFloat {
+        let name = NSFont.systemFont(ofSize: 14).fontName
+        let font = NSFont(name: name, size: 14) ?? .systemFont(ofSize: 14)
+        return (s as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    private static func paragraphStyle(in attrs: [StyledRange], at pos: Int) -> NSParagraphStyle? {
+        var result: NSParagraphStyle?
+        for (range, a) in attrs where NSLocationInRange(pos, range) {
+            if let ps = a[.paragraphStyle] as? NSParagraphStyle { result = ps }
+        }
+        return result
+    }
+
+    @Test("leadingIndent drives the list item's first-line indent")
+    func topLevelItemUsesLeadingIndent() {
+        let attrs = Self.styled("- a", lists: ListStyle(leadingIndent: 0))
+        let ps = Self.paragraphStyle(in: attrs, at: 0)
+        #expect(ps?.firstLineHeadIndent == 0)
+        #expect(abs((ps?.headIndent ?? -1) - Self.width("- ")) < 0.01)
+    }
+
+    @Test("markerColumnWidth kerns the marker and sets the text column")
+    func markerColumnWidthWidensTheMarker() {
+        let lists = ListStyle(leadingIndent: 0, markerColumnWidth: 21)
+        let attrs = Self.styled("- a", lists: lists)
+        let kern = attrs
+            .first { $0.range == NSRange(location: 0, length: 1) && $0.attributes[.kern] != nil }?
+            .attributes[.kern] as? CGFloat
+        #expect(kern != nil)
+        #expect(abs((kern ?? 0) - (21 - Self.width("- "))) < 0.01)
+        #expect(abs((Self.paragraphStyle(in: attrs, at: 0)?.headIndent ?? -1) - 21) < 0.01)
+
+        let ordered = Self.styled("1. a", lists: lists)
+        #expect(!ordered.contains { $0.attributes[.kern] != nil })
+    }
+
+    @Test("checkbox is centred on the pinned marker column")
+    func checkboxCentredOnMarkerColumn() {
+        let lists = ListStyle(markerColumnWidth: 21, markerCenterOffset: 5.5)
+        #expect(TaskCheckboxGeometry.boxX(contentX: 100, size: 14, lists: lists) == 77.5)
     }
 }

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- List geometry knobs so an embedder can pin the marker column:
+  `ListStyle.leadingIndent` (first-line indent of every list item, previously a
+  silent reuse of `indentPerLevel`), `ListStyle.markerColumnWidth` (marker
+  column start to item text, kerned onto the `-` glyph for unordered items),
+  `ListStyle.markerCenterOffset` (bullet / checkbox centre inside that column,
+  shared by drawing and the checkbox hit-test), and `BulletStyle.diameter`.
+  The filled dot is now drawn as a vector like the other shapes, so one
+  diameter and one x-height-midline baseline apply at every depth, and the
+  checkbox centres on the text's cap height. Defaults reproduce the previous
+  rendering.
+
 ## [0.10.0] - 2026-07-15
 
 ### Added

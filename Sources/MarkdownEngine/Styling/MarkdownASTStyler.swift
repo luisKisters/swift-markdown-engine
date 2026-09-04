@@ -228,14 +228,27 @@ enum MarkdownASTStyler {
         ps.paragraphSpacingBefore = 0
         ps.tabStops = []
         ps.defaultTabInterval = ctx.config.lists.indentPerLevel
-        ps.firstLineHeadIndent = ctx.config.lists.indentPerLevel
+        ps.firstLineHeadIndent = ctx.config.lists.leadingIndent
+        // Marker column: widen the `-` glyph's advance with `.kern` so the item
+        // text starts `markerColumnWidth` right of the column, whatever the
+        // font measures `"- "` at. Ordered items keep their natural `"1. "`
+        // advance. Applied independent of caret reveal so the text does not
+        // jump when the caret enters the marker syntax.
+        let markerKern: CGFloat = {
+            guard !item.ordered, let column = ctx.config.lists.markerColumnWidth else { return 0 }
+            let dash = ("- " as NSString).size(withAttributes: [.font: ctx.baseFont]).width
+            return column - dash
+        }()
         // Wrapped lines hang under the first line's content (indent + marker
         // width). No checkbox-specific extra: the box is a drawn overlay that
         // doesn't change text advance, so adding it here (and only here, not to
         // firstLineHeadIndent) shifted an unchecked task's wrapped lines right
         // of its first line.
-        ps.headIndent = ctx.config.lists.indentPerLevel + depthIndent + markerWidth
+        ps.headIndent = ctx.config.lists.leadingIndent + depthIndent + markerWidth + markerKern
         attrs.append((line, [.paragraphStyle: ps]))
+        if markerKern != 0 {
+            attrs.append((item.marker, [.kern: markerKern]))
+        }
 
         // 2. Marker decoration (suppressed while the caret edits the syntax).
         if let box = item.checkbox {

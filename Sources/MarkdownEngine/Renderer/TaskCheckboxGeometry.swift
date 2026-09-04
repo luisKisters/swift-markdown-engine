@@ -6,18 +6,17 @@
 //
 //  Shared geometry for the drawn task-checkbox square. The hidden `[ ] ` chars
 //  are collapsed to ~zero advance by the styler, so `drawPosition`/
-//  `boundingRect` of the box range sit at the task CONTENT's left edge. The
-//  square is right-aligned to that edge with a small gap (Obsidian-style),
-//  occupying the `- ` marker slot. Fragment draw and click hit-test both use
-//  these functions so their rects can't drift apart.
+//  `boundingRect` of the box range sit at the task CONTENT's left edge. When
+//  the embedder pins a marker column (`ListStyle.markerColumnWidth`) the square
+//  is centred on that column, exactly where a bullet of the same depth sits;
+//  otherwise it is right-aligned to the content edge with a small gap
+//  (Obsidian-style), occupying the `- ` marker slot. Fragment draw and click
+//  hit-test both use these functions so their rects can't drift apart.
 //
 
 import AppKit
 
 enum TaskCheckboxGeometry {
-
-    /// Gap between the box's right edge and the task content's left edge.
-    static let gap: CGFloat = 2.0
 
     /// Side length of the square for the given (body) font.
     static func size(for font: NSFont) -> CGFloat {
@@ -32,8 +31,13 @@ enum TaskCheckboxGeometry {
         style.size ?? size(for: font)
     }
 
-    /// Left edge of the square: right-aligned to the content start x with `gap`.
-    static func boxX(contentX: CGFloat, size: CGFloat, gap: CGFloat = gap) -> CGFloat {
-        contentX - size - gap
+    /// Left edge of the square. With a pinned marker column the box is centred
+    /// on the column (same anchor as the bullet); without one it stays
+    /// right-aligned to the content start x with `taskCheckbox.gap`.
+    static func boxX(contentX: CGFloat, size: CGFloat, lists: ListStyle) -> CGFloat {
+        guard let column = lists.markerColumnWidth else {
+            return contentX - size - lists.taskCheckbox.gap
+        }
+        return contentX - column + (lists.markerCenterOffset ?? column / 2) - size / 2
     }
 }

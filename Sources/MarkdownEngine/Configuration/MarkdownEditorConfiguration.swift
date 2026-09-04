@@ -282,16 +282,21 @@ public struct BulletStyle: Sendable, Equatable {
     public var shapeLadder: [BulletShape]
     /// nil uses `theme.bodyText`.
     public var color: NSColor?
+    /// Ink diameter of the drawn shape, in points. nil derives it from the
+    /// font (`round(pointSize * 0.32)`), which is the historical size.
+    public var diameter: CGFloat?
     /// Stroke width of the `.hollowRing` shape.
     public var ringStrokeWidth: CGFloat
 
     public init(
         shapeLadder: [BulletShape] = [.filledDot],
         color: NSColor? = nil,
+        diameter: CGFloat? = nil,
         ringStrokeWidth: CGFloat = 1
     ) {
         self.shapeLadder = shapeLadder
         self.color = color
+        self.diameter = diameter
         self.ringStrokeWidth = ringStrokeWidth
     }
 
@@ -361,6 +366,16 @@ public struct ListStyle: Sendable, Equatable {
     public var autoClosePairsEnabled: Bool
     /// Indent (in points) that one nesting level adds to the list item.
     public var indentPerLevel: CGFloat
+    /// `firstLineHeadIndent` of every list item, i.e. the x of the marker
+    /// column for a depth-0 item. The default matches the historical
+    /// behaviour, where a list item silently reused `indentPerLevel`.
+    public var leadingIndent: CGFloat
+    /// Distance from the marker column start to the item text. nil keeps the
+    /// natural advance of the `"- "` marker. Unordered items only.
+    public var markerColumnWidth: CGFloat?
+    /// x of the bullet / checkbox centre, measured from the marker column
+    /// start. nil centres the shape inside the marker advance.
+    public var markerCenterOffset: CGFloat?
     /// Maximum nesting level reachable by pressing Tab inside a list.
     public var maximumNestingLevel: Int
     /// Extra line height added on top of the default to give list items room.
@@ -372,6 +387,9 @@ public struct ListStyle: Sendable, Equatable {
         helpersEnabled: Bool = true,
         autoClosePairsEnabled: Bool = true,
         indentPerLevel: CGFloat = 27.5,
+        leadingIndent: CGFloat = 27.5,
+        markerColumnWidth: CGFloat? = nil,
+        markerCenterOffset: CGFloat? = nil,
         maximumNestingLevel: Int = 3,
         extraLineHeight: CGFloat = 2,
         bullets: BulletStyle = .default,
@@ -380,6 +398,9 @@ public struct ListStyle: Sendable, Equatable {
         self.helpersEnabled = helpersEnabled
         self.autoClosePairsEnabled = autoClosePairsEnabled
         self.indentPerLevel = indentPerLevel
+        self.leadingIndent = leadingIndent
+        self.markerColumnWidth = markerColumnWidth
+        self.markerCenterOffset = markerCenterOffset
         self.maximumNestingLevel = maximumNestingLevel
         self.extraLineHeight = extraLineHeight
         self.bullets = bullets
