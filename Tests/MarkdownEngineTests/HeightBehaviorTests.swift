@@ -127,6 +127,23 @@ struct FitsContentInflationTests {
         stack.container.headerHeight = 40
         #expect(stack.container.frame.height == 800)
     }
+
+    /// A viewport that grows while the content height and the overscroll both
+    /// stay put must still re-inflate the body. Before this was fixed, the text
+    /// view stayed shorter than its clip, so the strip below the text belonged
+    /// to the container and clicking it placed no caret.
+    @Test func scrollsRefillsViewportWhenOverscrollIsUnchanged() {
+        let stack = HeightBehaviorStack(viewport: NSSize(width: 420, height: 300))
+        stack.textView.recalcOverscroll(for: stack.scrollView)
+        #expect(stack.textView.frame.height == 300)
+        let settledOverscroll = stack.textView.activeBottomOverscroll
+
+        stack.scrollView.setFrameSize(NSSize(width: 420, height: 400))
+        stack.textView.recalcOverscroll(for: stack.scrollView)
+
+        #expect(stack.textView.activeBottomOverscroll == settledOverscroll)
+        #expect(stack.textView.frame.height == 400)
+    }
 }
 
 // MARK: - Overscroll zeroing

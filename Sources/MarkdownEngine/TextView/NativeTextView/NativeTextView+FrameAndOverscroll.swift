@@ -49,9 +49,15 @@ extension NativeTextView {
         PerfTrace.note {
             "overscroll[\(debugTag)]: fullLayout=\(forcedFullLayout ? 1 : 0) h=\(Int(measured))\(baseHeightChanged ? " hChanged" : "")\(overscrollChanged ? " osChanged" : "")"
         }
-        guard baseHeightChanged || overscrollChanged else { return }
         baseContentHeight = measured
         activeBottomOverscroll = resolvedOverscroll
+        // Always re-apply, even when both terms above are unchanged: in
+        // `.scrolls` the managed height is `max(content, viewport − header)`,
+        // so a viewport change alone can require a new frame. Skipping it left
+        // the text view SHORTER than its clip — the strip below the text then
+        // belongs to the container, and clicking it places no caret. The
+        // measure above is the expensive part; `applyManagedFrameSize` returns
+        // immediately when the resulting size is the current one.
         applyManagedFrameSize(width: targetWidth ?? frame.size.width)
     }
 

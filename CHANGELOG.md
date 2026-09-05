@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   always `-`), so every unordered marker puts its content in the same column.
 - Bullet shapes snap their origin to the device pixel grid, like the task
   checkbox already did, so a small drawn dot is not blurred across two pixels.
+- In `.scrolls`, the body re-fills its viewport after a viewport change even
+  when the content height and the resolved overscroll are both unchanged.
+  `recalcOverscroll` used to skip the frame update in that case, so the text
+  view could stay shorter than its clip: the strip below the text then belonged
+  to the container and a click there placed no caret.
 
 ## [0.10.0] - 2026-07-15
 
