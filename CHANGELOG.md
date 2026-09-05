@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checkbox centres on the text's cap height. Defaults reproduce the previous
   rendering.
 
+### Fixed
+- A pinned marker column now measures the item's own marker (`*` and `+`, not
+  always `-`), so every unordered marker puts its content in the same column.
+- Bullet shapes snap their origin to the device pixel grid, like the task
+  checkbox already did, so a small drawn dot is not blurred across two pixels.
+
 ## [0.10.0] - 2026-07-15
 
 ### Added

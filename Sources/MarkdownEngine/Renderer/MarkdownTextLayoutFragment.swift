@@ -554,7 +554,16 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                 x: pos.x + (lists.markerCenterOffset ?? markerWidth / 2),
                 y: pos.baselineY - font.xHeight / 2
             )
-            let rect = CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
+            // Snap the origin to the device grid, like the checkbox: an
+            // unaligned 4.5pt shape lands on half pixels and renders as a
+            // blurred, off-centre blob that also moves between capture runs.
+            let scale = self.textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+                ?? NSScreen.main?.backingScaleFactor ?? 2.0
+            func alignToPixel(_ value: CGFloat) -> CGFloat {
+                (value * scale).rounded(.toNearestOrAwayFromZero) / scale
+            }
+            let rect = CGRect(x: alignToPixel(center.x - diameter / 2),
+                              y: alignToPixel(center.y - diameter / 2),
                               width: diameter, height: diameter)
             color.set()
             switch shape {
@@ -568,7 +577,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                 NSBezierPath(rect: rect).fill()
             case .triangle:
                 let path = NSBezierPath()
-                path.move(to: CGPoint(x: center.x, y: rect.minY))
+                path.move(to: CGPoint(x: rect.midX, y: rect.minY))
                 path.line(to: CGPoint(x: rect.maxX, y: rect.maxY))
                 path.line(to: CGPoint(x: rect.minX, y: rect.maxY))
                 path.close()

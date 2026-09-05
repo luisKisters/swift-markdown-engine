@@ -387,6 +387,15 @@ struct ListMarkerStyleTests {
 
         let ordered = Self.styled("1. a", lists: lists)
         #expect(!ordered.contains { $0.attributes[.kern] != nil })
+
+        // A `*` item lands on the same text column as a `-` item, which needs
+        // its own marker advance measured rather than the dash's.
+        let star = Self.styled("* a", lists: lists)
+        let starKern = star
+            .first { $0.range == NSRange(location: 0, length: 1) && $0.attributes[.kern] != nil }?
+            .attributes[.kern] as? CGFloat
+        #expect(abs((starKern ?? 0) - (21 - Self.width("* "))) < 0.01)
+        #expect(abs((Self.paragraphStyle(in: star, at: 0)?.headIndent ?? -1) - 21) < 0.01)
     }
 
     @Test("checkbox is centred on the pinned marker column")

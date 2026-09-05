@@ -236,8 +236,12 @@ enum MarkdownASTStyler {
         // jump when the caret enters the marker syntax.
         let markerKern: CGFloat = {
             guard !item.ordered, let column = ctx.config.lists.markerColumnWidth else { return 0 }
-            let dash = ("- " as NSString).size(withAttributes: [.font: ctx.baseFont]).width
-            return column - dash
+            // Measure THIS item's marker, not a literal `- `: `*` and `+` have
+            // their own advance, and using the dash's would put their content
+            // in a different column.
+            let natural = ((ctx.ns.substring(with: item.marker) + " ") as NSString)
+                .size(withAttributes: [.font: ctx.baseFont]).width
+            return column - natural
         }()
         // Wrapped lines hang under the first line's content (indent + marker
         // width). No checkbox-specific extra: the box is a drawn overlay that
